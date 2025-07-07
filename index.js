@@ -1,74 +1,71 @@
-const mineflayer = require('mineflayer')
-const cmd = require('mineflayer-cmd').plugin
-const fs = require('fs');
-let rawdata = fs.readFileSync('config.json');
-let data = JSON.parse(rawdata);
-var lasttime = -1;
-var moving = 0;
-var connected = 0;
-var actions = [ 'forward', 'back', 'left', 'right']
-var lastaction;
-var pi = 3.14159;
-var moveinterval = 0; // 2 second movement interval
-var maxrandom = 5; // 0-5 seconds added to movement interval (randomly)
-var host = data["ip"];
-var username = data["name"]
-var nightskip = data["auto-night-skip"]
-var bot = mineflayer.createBot({
-  host: host,
-  username: username
-});
-function getRandomArbitrary(min, max) {
-       return Math.random() * (max - min) + min;
+const mineflayer = require('mineflayer');
+const express = require('express');
+const { mineflayer: mineflayerViewer } = require('prismarine-viewer')
 
+const app = express();
+const port = 3000;
+
+let bot = null;
+
+function createBot() {
+    bot = mineflayer.createBot({
+        host: 'vamsikiduniya.aternos.me', // Minecraft server IP
+        port: 25565,                     // Minecraft server port
+        username: 'Bot',                 // Minecraft username
+        auth: "offline",
+    });
+
+    bot.on('spawn', () => {
+        console.log('Bot has spawned in the game.');
+        mineflayerViewer(bot, { port: 3001 });
+    });
+
+    bot.on('end', (reason) => {
+        console.log(`Bot disconnected: ${reason}`);
+        bot = null; // Clear the bot instance
+    });
+
+    bot.on('error', err => {
+        console.error('Bot encountered an error:', err);
+        bot = null; // Clear the bot instance
+    });
 }
 
-bot.loadPlugin(cmd)
-
-
-
-bot.on('login',function(){
-	console.log("Logged In")
-	bot.chat("/gamemode c");
-});
-
-bot.on('time', function(time) {
-	if(nightskip == "true"){
-	if(bot.time.timeOfDay >= 13000){
-	bot.chat('/time set day')
-	}}
-    if (connected <1) {
-        return;
+app.get('/join', (req, res) => {
+    if (bot) {
+        return res.status(400).send('Bot is already running.');
     }
-    if (lasttime<0) {
-        lasttime = bot.time.age;
-    } else {
-        var randomadd = Math.random() * maxrandom * 20;
-        var interval = moveinterval*20 + randomadd;
-        if (bot.time.age - lasttime > interval) {
-            if (moving == 1) {
-                bot.setControlState(lastaction,false);
-                moving = 0;
-                lasttime = bot.time.age;
-            } else {
-                var yaw = Math.random()*pi - (0.5*pi);
-                var pitch = Math.random()*pi - (0.5*pi);
-                bot.look(yaw,pitch,false);
-                lastaction = actions[Math.floor(Math.random() * actions.length)];
-                bot.setControlState(lastaction,true);
-                moving = 1;
-                lasttime = bot.time.age;
-                bot.activateItem();
-            }
-        }
+    createBot();
+    res.send('Bot is joining the server...');
+});
+
+app.get('/leave', (req, res) => {
+    if (!bot) {
+        return res.status(400).send('Bot is not running.');
     }
+    bot.quit();
+    res.send('Bot is leaving the server.');
 });
 
-bot.on('spawn',function() {
-    connected=1;
+
+
+app.get('/tp', (req, res) => {
+    if (!bot) {
+        return res.status(400).send('Bot is not running.');
+    }
+    const x = 1908;
+    const y = 98;
+    const z = 644;
+    bot.entity.position.x = x;
+    bot.entity.position.y = y;
+    bot.entity.position.z = z;
+    res.send('Bot is attempting to teleport to x:1908, y:98, z:64.');
 });
 
-bot.on('death',function() {
-    bot.emit("respawn")
-});
 
+
+app.listen(port, () => {
+    console.log(`Server listening at http://localhost:${port}`);
+    console.log('Visit http://localhost:3000/join to make the bot join.');
+    console.log('Visit http://localhost:3000/leave to make the bot leave.');
+});
