@@ -41,6 +41,10 @@ function createBot() {
 
     bot.on('error', (err) => {
         console.error('Bot encountered an error:', err);
+        // End the bot instance to trigger the 'end' event for reconnection.
+        if (bot) {
+            bot.end();
+        }
     });
 
     bot.on('end', (reason) => {
