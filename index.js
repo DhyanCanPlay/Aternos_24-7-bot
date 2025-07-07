@@ -1,5 +1,6 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
+const axios = require('axios');
 const app = express();
 const port = 3000;
 
@@ -53,3 +54,17 @@ function createBot() {
 
 // Start the bot
 createBot();
+
+
+
+const keepAliveURL = 'https://dhyancanplay.onrender.com/';
+
+setInterval(() => {
+    axios.head(keepAliveURL)
+        .then(response => {
+            console.log(`HEAD request to ${keepAliveURL} was successful.`);
+        })
+        .catch(error => {
+            console.error(`Error sending HEAD request to ${keepAliveURL}:`, error.message);
+        });
+}, 60000); // every minute
