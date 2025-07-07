@@ -1,7 +1,7 @@
 const mineflayer = require('mineflayer');
 
 const HOST = 'vamsikiduniya.aternos.me';
-const USERNAME = 'Bot';
+const USERNAME = 'ChomuBot';
 
 
 let bot;
