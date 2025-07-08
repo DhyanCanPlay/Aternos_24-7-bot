@@ -4,26 +4,17 @@ const axios = require('axios');
 const app = express();
 const port = 3000;
 
-app.get('/', (req, res) => {
-    res.send('<h1>hi</h1>');
-});
-
-app.listen(port, () => {
-    console.log(`Server listening at http://localhost:${port}`);
-});
-
-
+let bot = null;
 const HOST = 'vamsikiduniya.aternos.me';
 const USERNAME = 'ChomuBot';
 
-
-let bot;
-
 function createBot() {
+    if (bot) return; // Prevent multiple bots
     bot = mineflayer.createBot({
         host: HOST,
         username: USERNAME,
-        auth: 'offline',
+        auth: 'offline',    
+        version : '1.21.7', // Specify the Minecraft version
     });
 
     bot.on('spawn', () => {
@@ -32,7 +23,6 @@ function createBot() {
 
     bot.on('death', () => {
         console.log('Bot has died. Respawning...');
-        // The 'end' event will trigger, and the respawn logic is handled there.
     });
 
     bot.on('kicked', (reason) => {
@@ -41,34 +31,74 @@ function createBot() {
 
     bot.on('error', (err) => {
         console.error('Bot encountered an error:', err);
-        // End the bot instance to trigger the 'end' event for reconnection.
-        if (bot) {
-            bot.end();
-        }
+        if (bot) bot.end();
     });
 
     bot.on('end', (reason) => {
-        console.log(`Bot disconnected: ${reason}. Reconnecting in 15 seconds...`);
-        setTimeout(createBot, 15000); // Attempt to reconnect after 15 seconds
+        console.log(`Bot disconnected: ${reason}.`);
+        bot = null;
     });
-
 }
 
-// Setup Express Server
+function leaveBot() {
+    if (bot) {
+        bot.quit('Bot left by user.');
+        bot = null;
+    }
+}
 
-// Start the bot
-createBot();
+// Serve HTML with buttons
+app.get('/', (req, res) => {
+    res.send(`
+        <h1>hi</h1>
+        <button onclick="fetch('/join').then(()=>location.reload())">Join</button>
+        <button onclick="fetch('/leave').then(()=>location.reload())">Leave</button>
+        <p>Status: <span id="status"></span></p>
+        <script>
+            fetch('/status').then(r=>r.json()).then(d=>{
+                document.getElementById('status').textContent = d.online ? 'Online' : 'Offline';
+            });
+        </script>
+    `);
+});
 
+// Join endpoint
+app.get('/join', (req, res) => {
+    if (!bot) {
+        createBot();
+        res.send('Bot joining...');
+    } else {
+        res.send('Bot already online.');
+    }
+});
 
+// Leave endpoint
+app.get('/leave', (req, res) => {
+    if (bot) {
+        leaveBot();
+        res.send('Bot leaving...');
+    } else {
+        res.send('Bot already offline.');
+    }
+});
 
+// Status endpoint
+app.get('/status', (req, res) => {
+    res.json({ online: !!bot });
+});
+
+app.listen(port, () => {
+    console.log(`Server listening at http://localhost:${port}`);
+});
+
+// Keep-alive logic
 const keepAliveURL = 'https://dhyancanplay.onrender.com/';
-
 setInterval(() => {
     axios.head(keepAliveURL)
-        .then(response => {
+        .then(() => {
             console.log(`HEAD request to ${keepAliveURL} was successful.`);
         })
         .catch(error => {
             console.error(`Error sending HEAD request to ${keepAliveURL}:`, error.message);
         });
-}, 60000); // every minute
+}, 60000);
